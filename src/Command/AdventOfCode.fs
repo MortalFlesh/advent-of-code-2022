@@ -22,6 +22,38 @@ module AdventOfCode =
             |> List.filter (fun i -> i % int64 2 = 0)
             |> Seq.sum
 
+    [<RequireQualifiedAccess>]
+    module private Day1 =
+        let task1 (input: string list) =
+            input
+            |> List.map Int.tryParse
+            |> List.fold
+                (fun (currentElf, elves) -> function
+                    | Some calory -> calory :: currentElf, elves
+                    | _ -> [], (currentElf |> List.sum) :: elves
+                )
+                ([], [])
+            |> function
+                | [], elves -> elves
+                | currentElf, elves -> (currentElf |> List.sum) :: elves
+            |> List.max
+
+        let task2 (input: string list) =
+            input
+            |> List.map Int.tryParse
+            |> List.fold
+                (fun (currentElf, elves) -> function
+                    | Some calory -> calory :: currentElf, elves
+                    | _ -> [], (currentElf |> List.sum) :: elves
+                )
+                ([], [])
+            |> function
+                | [], elves -> elves
+                | currentElf, elves -> (currentElf |> List.sum) :: elves
+            |> List.sortDescending
+            |> List.take 3
+            |> List.sum
+
     // todo - add more days here ...
 
     // --- end of days ---
@@ -81,6 +113,13 @@ module AdventOfCode =
                 else inputLines |> DayExample.task2
 
             return! handleResult int64 result
+        | 1 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day1.task1
+                else inputLines |> Day1.task2
+
+            return! handleResult int result
 
         | day ->
             return! sprintf "Day %A is not ready yet." day |> err |> Error
