@@ -54,6 +54,84 @@ module AdventOfCode =
             |> List.take 3
             |> List.sum
 
+    [<RequireQualifiedAccess>]
+    module private Day2 =
+        type GameResult =
+            | Win
+            | Draw
+            | Lose
+
+        type Hand =
+            | Rock
+            | Paper
+            | Scissors
+
+        let private (|ParseHand|_|) = function
+            | "A" | "X" -> Some Rock
+            | "B" | "Y" -> Some Paper
+            | "C" | "Z" -> Some Scissors
+            | _ -> None
+
+        let private points = function
+            | Rock -> 1
+            | Paper -> 2
+            | Scissors -> 3
+
+        let private gamePoints = function
+            | Win -> 6
+            | Draw -> 3
+            | Lose -> 0
+
+        let private play = function
+            | Regex "([A-C]) ([X-Z])" [ ParseHand oponnent; ParseHand myHand ] ->
+                let outcome =
+                    match oponnent, myHand with
+                    | Rock, Rock -> Draw
+                    | Rock, Paper -> Win
+                    | Rock, Scissors -> Lose
+                    | Paper, Rock -> Lose
+                    | Paper, Paper -> Draw
+                    | Paper, Scissors -> Win
+                    | Scissors, Rock -> Win
+                    | Scissors, Paper -> Lose
+                    | Scissors, Scissors -> Draw
+
+                (outcome |> gamePoints) +
+                (myHand |> points)
+            | _ -> 0
+
+        let task1 (input: string list) =
+            printfn "It is not: 10052"
+            input
+            |> List.sumBy play
+
+        let private (|ShouldPlay|_|) = function
+            | "X" -> Some Lose
+            | "Y" -> Some Draw
+            | "Z" -> Some Win
+            | _ -> None
+
+        let private playRight = function
+            | Regex "([A-C]) ([X-Z])" [ ParseHand oponnent; ShouldPlay outcome ] ->
+                let myHand =
+                    match oponnent, outcome with
+                    | Rock, Win -> Paper
+                    | Rock, Lose -> Scissors
+                    | Paper, Win -> Scissors
+                    | Paper, Lose -> Rock
+                    | Scissors, Win -> Rock
+                    | Scissors, Lose -> Paper
+                    | _, Draw -> oponnent
+
+                (outcome |> gamePoints) +
+                (myHand |> points)
+
+            | _ -> 0
+
+        let task2 (input: string list) =
+            input
+            |> List.sumBy playRight
+
     // todo - add more days here ...
 
     // --- end of days ---
@@ -118,6 +196,13 @@ module AdventOfCode =
                 if firstPuzzle
                 then inputLines |> Day1.task1
                 else inputLines |> Day1.task2
+
+            return! handleResult int result
+        | 2 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day2.task1
+                else inputLines |> Day2.task2
 
             return! handleResult int result
 
