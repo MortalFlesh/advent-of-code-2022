@@ -132,6 +132,89 @@ module AdventOfCode =
             input
             |> List.sumBy playRight
 
+    [<RequireQualifiedAccess>]
+    module private Day3 =
+        let private findCharValue =
+            let values =
+                [
+                    let mutable i = 1
+                    for lower in 'a' .. 'z' do
+                        yield lower, i
+                        i <- i + 1
+
+                    for upper in 'A' .. 'Z' do
+                        yield upper, i
+                        i <- i + 1
+                ]
+                |> Map.ofList
+
+            fun c -> values[c]
+
+        let task1 (input: string list) =
+            input
+            |> List.choose (fun input ->
+                match input.ToCharArray() |> Array.toList |> List.splitInto 2 with
+                | [] | [ _ ] -> None
+                | [ first; second ] ->
+                    let f = first |> Set.ofList
+                    let s = second |> Set.ofList
+
+                    f
+                    |> Set.intersect s
+                    |> Set.toList
+                    |> List.sumBy findCharValue
+                    |> Some
+                | _ -> None
+            )
+            |> Seq.sum
+
+        let task2 (input: string list) =
+            input
+            |> List.chunkBySize 3
+            |> List.choose (fun group ->
+                match group |> List.map (fun line -> line.ToCharArray() |> Array.toList |> Set.ofList) with
+                | [] | [_] | [_;_] -> None
+                | [ first; second; third ] as group ->
+                    group
+                    |> Set.intersectMany
+                    |> Set.toList
+                    |> List.sumBy findCharValue
+                    |> Some
+                | _ -> None
+
+            )
+            |> Seq.sum
+
+    [<RequireQualifiedAccess>]
+    module private Day4 =
+        let task1 (input: string list) =
+            input
+            |> List.choose (function
+                | Regex @"(\d+)\-(\d+),(\d+)\-(\d+)" [ a1; a2; b1; b2 ] ->
+                    let a = [ int a1 .. int a2 ] |> Set.ofList
+                    let b = [ int b1 .. int b2 ] |> Set.ofList
+
+                    if (a |> Set.isSubset b) || (b |> Set.isSubset a)
+                    then Some 1
+                    else None
+                | _ -> None
+            )
+            |> Seq.sum
+
+        let task2 (input: string list) =
+            input
+            |> List.choose (function
+                | Regex @"(\d+)\-(\d+),(\d+)\-(\d+)" [ a1; a2; b1; b2 ] ->
+                    let a = [ int a1 .. int a2 ] |> Set.ofList
+                    let b = [ int b1 .. int b2 ] |> Set.ofList
+
+                    if (a |> Set.intersect b |> Set.isEmpty)
+                    then None
+                    else Some 1
+                | _ -> None
+            )
+            |> Seq.sum
+
     // todo - add more days here ...
 
     // --- end of days ---
@@ -203,6 +286,20 @@ module AdventOfCode =
                 if firstPuzzle
                 then inputLines |> Day2.task1
                 else inputLines |> Day2.task2
+
+            return! handleResult int result
+        | 3 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day3.task1
+                else inputLines |> Day3.task2
+
+            return! handleResult int result
+        | 4 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day4.task1
+                else inputLines |> Day4.task2
 
             return! handleResult int result
 
