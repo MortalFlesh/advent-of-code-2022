@@ -215,6 +215,153 @@ module AdventOfCode =
             )
             |> Seq.sum
 
+    [<RequireQualifiedAccess>]
+    module private Day5 =
+        open System.Collections.Generic
+
+        let private printStack i (stack: Stack<_>) =
+            printfn "___"
+            stack
+            |> Seq.iter (printfn "[%s]")
+            printfn "---"
+            printfn " %A " i
+
+        let private parseSample config =
+            printfn "Config: %A" config
+            printfn "---"
+
+            let stacks =
+                config
+                |> List.rev
+                |> List.pick (function
+                    | Regex @"(\d+)" _ as line -> line.Split " " |> Seq.choose Int.tryParse |> List.ofSeq |> Some
+                    | _ -> None
+                )
+                |> List.map (fun id -> id, Stack<string>())
+                |> Map.ofList
+
+            printfn "Stack IDs: %A" stacks
+
+            let crates =
+                config
+                |> List.filter (String.contains "[")
+                |> List.map (
+                    String.replace "    [" "- ["
+                    >> String.replace "]    " "] -"
+                    >> String.replace "   " "-"
+                    >> String.replace "[" ""
+                    >> String.replace "]" ""
+                    >> String.split " "
+                )
+                |> List.map (List.map (function
+                    | "-" -> None
+                    | crate -> Some crate
+                ))
+                |> tee (List.iteri (printfn "[%A] %A"))
+                |> List.rev
+            printfn "======"
+
+            for id in stacks.Keys do
+                let stack = stacks[id]
+
+                printfn "id: %A" id
+                for i in 0 .. crates.Length - 1 do
+                    printfn "[%A][%A] %A" i id (crates[i][id - 1])
+                    match crates[i][id - 1] with
+                    | Some crate -> stack.Push(crate)
+                    | _ -> ()
+
+                printfn ""
+
+            stacks
+
+        let private inputStack =
+            (*                      [L]     [H] [W]
+                                [J] [Z] [J] [Q] [Q]
+                [S]             [M] [C] [T] [F] [B]
+                [P]     [H]     [B] [D] [G] [B] [P]
+                [W]     [L] [D] [D] [J] [W] [T] [C]
+                [N] [T] [R] [T] [T] [T] [M] [M] [G]
+                [J] [S] [Q] [S] [Z] [W] [P] [G] [D]
+                [Z] [G] [V] [V] [Q] [M] [L] [N] [R]
+                1   2   3   4   5   6   7   8   9  *)
+            [
+                1, Stack(["S";"P";"W";"N";"J";"Z"] |> List.rev)
+                2, Stack(["T"; "S"; "G"] |> List.rev)
+                3, Stack(["H"; "L";"R";"Q";"V"] |> List.rev)
+                4, Stack([ "D"; "T"; "S"; "V" ] |> List.rev)
+                5, Stack([ "J";"M";"B";"D";"T";"Z";"Q" ] |> List.rev)
+                6, Stack([ "L";"Z";"C";"D";"J";"T";"W";"M" ] |> List.rev)
+                7, Stack([ "J";"T";"G";"W";"M";"P";"L" ] |> List.rev)
+                8, Stack([ "H";"Q";"F";"B";"T";"M";"G";"N" ] |> List.rev)
+                9, Stack([ "W";"Q";"B";"P";"C";"G";"D";"R" ] |> List.rev)
+            ]
+            |> Map.ofList
+
+        let private printStacks stacks =
+            printfn "Stacks:"
+            stacks
+            |> Map.toList
+            |> List.iter (fun (id, stack) -> printStack id stack)
+
+        let task1 (input: string list) =
+            let (actions, config) =
+                input
+                |> List.partition (String.startsWith "move")
+
+            // let stacks = parseSample config
+            let stacks = inputStack
+
+            printStacks stacks
+
+            //printfn "Actions: %A" actions
+            actions
+            |> List.iter (function
+                | Regex @"move (\d+) from (\d+) to (\d+)" [ count; source; target ] ->
+                    for _ in 1 .. int count do
+                        stacks[int source].Pop()
+                        |> stacks[int target].Push
+
+                    //printStacks stacks
+                | _ -> ()
+            )
+
+            stacks
+            |> Map.toList
+            |> List.map (fun (_, stack) -> stack.Peek())
+            |> String.concat ""
+
+        let task2 (input: string list) =
+            let (actions, config) =
+                input
+                |> List.partition (String.startsWith "move")
+
+            //let stacks = parseSample config
+            let stacks = inputStack
+
+            printStacks stacks
+
+            //printfn "Actions: %A" actions
+            actions
+            |> List.iter (function
+                | Regex @"move (\d+) from (\d+) to (\d+)" [ count; source; target ] ->
+                    [
+                        for _ in 1 .. int count do
+                            yield stacks[int source].Pop()
+                    ]
+                    |> List.rev
+                    |> List.iter (stacks[int target].Push)
+
+                    printStacks stacks
+                    ()
+                | _ -> ()
+            )
+
+            stacks
+            |> Map.toList
+            |> List.map (fun (_, stack) -> stack.Peek())
+            |> String.concat ""
+
     // todo - add more days here ...
 
     // --- end of days ---
@@ -302,6 +449,13 @@ module AdventOfCode =
                 else inputLines |> Day4.task2
 
             return! handleResult int result
+        | 5 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day5.task1
+                else inputLines |> Day5.task2
+
+            return! handleResult string result
 
         | day ->
             return! sprintf "Day %A is not ready yet." day |> err |> Error
