@@ -252,11 +252,11 @@ module AdventOfCode =
                     >> String.replace "[" ""
                     >> String.replace "]" ""
                     >> String.split " "
+                    >> List.map (function
+                        | "-" -> None
+                        | crate -> Some crate
+                    )
                 )
-                |> List.map (List.map (function
-                    | "-" -> None
-                    | crate -> Some crate
-                ))
                 |> tee (List.iteri (printfn "[%A] %A"))
                 |> List.rev
             printfn "======"

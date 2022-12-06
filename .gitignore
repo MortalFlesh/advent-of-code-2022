@@ -26,3 +26,5 @@ paket-files/
 
 # application
 dist
+
+global.json
