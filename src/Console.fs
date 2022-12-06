@@ -75,9 +75,10 @@ module Console =
                 else failwithf "Path %A is invalid." path
 
             use watcher =
+                let enable = true
                 new FileSystemWatcher(
                     Path = pathDir,
-                    EnableRaisingEvents = true,
+                    EnableRaisingEvents = enable,
                     IncludeSubdirectories = includeSubDirs
                 )
 
