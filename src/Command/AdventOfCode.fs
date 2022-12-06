@@ -362,6 +362,40 @@ module AdventOfCode =
             |> List.map (fun (_, stack) -> stack.Peek())
             |> String.concat ""
 
+    [<RequireQualifiedAccess>]
+    module private Day6 =
+        let task1 (input: string list) =
+            let distinctNeeded = 4
+
+            input
+            |> List.choose (fun line ->
+                seq {
+                    for i in 0 .. line.Length - 1 do
+                        if line.ToCharArray(i, distinctNeeded) |> Array.distinct |> Array.length = distinctNeeded
+                        then yield Some (i + distinctNeeded)
+                        else yield None
+                }
+                |> Seq.tryPick id
+            )
+            |> List.map string
+            |> String.concat ", "
+
+        let task2 (input: string list) =
+            let distinctNeeded = 14
+
+            input
+            |> List.choose (fun line ->
+                seq {
+                    for i in 0 .. line.Length - 1 do
+                        if line.ToCharArray(i, distinctNeeded) |> Array.distinct |> Array.length = distinctNeeded
+                        then yield Some (i + distinctNeeded)
+                        else yield None
+                }
+                |> Seq.tryPick id
+            )
+            |> List.map string
+            |> String.concat ", "
+
     // todo - add more days here ...
 
     // --- end of days ---
@@ -454,6 +488,13 @@ module AdventOfCode =
                 if firstPuzzle
                 then inputLines |> Day5.task1
                 else inputLines |> Day5.task2
+
+            return! handleResult string result
+        | 6 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day6.task1
+                else inputLines |> Day6.task2
 
             return! handleResult string result
 
