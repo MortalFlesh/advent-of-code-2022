@@ -396,6 +396,111 @@ module AdventOfCode =
             |> List.map string
             |> String.concat ", "
 
+    [<RequireQualifiedAccess>]
+    module private Day7 =
+        type Path = string list // in reverse order!
+        let private formatPath path = path |> List.rev |> String.concat "/" |> String.replace "//" "/"
+        let inline private (</>) path dir = dir :: path
+
+        type Structure =
+            | Directory of Path * string
+            | File of string * int
+
+        type Run = {
+            CWD: string list
+            Structure: Map<Path, Structure list>
+        }
+
+        let private addStructure structure run =
+            let cwdStructure =
+                match run.Structure |> Map.tryFind run.CWD with
+                | Some current -> structure :: current
+                | _ -> [ structure ]
+
+            { run with Structure = run.Structure.Add(run.CWD, cwdStructure) }
+
+        let private getStructure input =
+            input
+            |> List.fold
+                (fun run line ->
+                    match run, line with
+                    // cd /
+                    | _, "$ cd /" -> { run with CWD = [ "/" ] }
+
+                    // cd ..
+                    | { CWD = [] }, "$ cd .." -> { run with CWD = [ "/" ] }
+                    | { CWD = [ "/" ] }, "$ cd .." -> run
+                    | { CWD = _ :: dir }, "$ cd .." -> { run with CWD = dir }
+
+                    // cd X
+                    | _, Regex @"\$ cd (.+)" [ dir ] -> { run with CWD = run.CWD </> dir }
+
+                    // ls
+                    | _, "$ ls" -> run
+                    | run, Regex @"dir (.+)" [ dir ] -> run |> addStructure (Directory (run.CWD, dir))
+                    | run, Regex @"(\d+) (.+)" [ size; file ] -> run |> addStructure (File (file, int size))
+
+                    | _ -> run
+                )
+                {
+                    CWD = [ "/" ]
+                    Structure =
+                        [
+                            [], [ Directory ([], "/") ]
+                            ["/"], []
+                        ]
+                        |> Map.ofList
+                }
+        // |> tee (printfn "%A\n-------\n")
+
+        let rec private calculateDirectorySize (path, directory) run =
+            // printfn " - %A (at %A) " directory (path |> formatPath)
+            match run.Structure |> Map.tryFind (path </> directory) with
+            | Some structure -> structure |> List.sumBy (calucateStructureSize run) // |> tee (printfn "==> size: %A")
+            | _ -> 0
+
+        and private calucateStructureSize run = function
+            | Directory (path, dir) ->
+                // printfn " -> go deeper to: %A" (path </> dir |> formatPath)
+                run |> calculateDirectorySize (path, dir)
+            | File (_, size) -> size
+
+        let task1 (input: string list) =
+            let structure = input |> getStructure
+
+            structure.Structure
+            |> Map.toList
+            |> List.collect snd
+            |> List.choose (function
+                | Directory (path, dir) ->
+                    // printfn "\nDirectory: %A" dir
+                    structure |> calculateDirectorySize (path, dir) |> Some
+                | _ -> None
+            )
+            |> List.filter (fun size -> size <= 100000)
+            |> List.sum
+
+        let task2 (input: string list) =
+            let structure = input |> getStructure
+            let totalDiskSize = 70000000
+            let updateNeeds = 30000000
+            let totalUsedSpace = structure |> calculateDirectorySize ([], "/")
+            let unusedSpace = totalDiskSize - totalUsedSpace
+            let requiredSpace = updateNeeds - unusedSpace
+            printfn "Required Space: %A" requiredSpace
+
+            structure.Structure
+            |> Map.toList
+            |> List.collect snd
+            |> List.choose (function
+                | Directory (path, dir) ->
+                    // printfn "\nDirectory: %A" dir
+                    structure |> calculateDirectorySize (path, dir) |> Some
+                | _ -> None
+            )
+            |> List.filter (fun size -> size >= requiredSpace)
+            |> List.min
+
     // todo - add more days here ...
 
     // --- end of days ---
@@ -497,6 +602,13 @@ module AdventOfCode =
                 else inputLines |> Day6.task2
 
             return! handleResult string result
+        | 7 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day7.task1
+                else inputLines |> Day7.task2
+
+            return! handleResult int result
 
         | day ->
             return! sprintf "Day %A is not ready yet." day |> err |> Error
