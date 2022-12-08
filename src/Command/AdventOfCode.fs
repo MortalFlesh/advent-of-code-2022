@@ -10,19 +10,6 @@ module AdventOfCode =
     open MF.Utils
 
     [<RequireQualifiedAccess>]
-    module private DayExample =
-        let task1 (input: string list) =
-            input
-            |> List.choose Int.tryParse
-            |> Seq.sum
-
-        let task2 (input: string list) =
-            input
-            |> List.choose Int.tryParse64
-            |> List.filter (fun i -> i % int64 2 = 0)
-            |> Seq.sum
-
-    [<RequireQualifiedAccess>]
     module private Day1 =
         let task1 (input: string list) =
             input
@@ -501,7 +488,125 @@ module AdventOfCode =
             |> List.filter (fun size -> size >= requiredSpace)
             |> List.min
 
+    [<RequireQualifiedAccess>]
+    module private Day8 =
+        type private Direction =
+            | Top
+            | Bottom
+            | Left
+            | Right
+
+        let private isVisible (grid: int list list) (i, j) =
+            let isVisibleInDirection direction range tree =
+                let treesInLine =
+                    seq {
+                        for k in range do
+                            yield
+                                match direction with
+                                | Top | Bottom -> grid[k][j]
+                                | Left | Right -> grid[i][k]
+                    }
+                    |> Set.ofSeq
+                    // |> tee (printf " - is %A visible (%A) in %A" tree direction)
+
+                tree > (treesInLine |> Set.maxElement) // |> tee (printfn " -> %A")
+
+            [
+                Left, isVisibleInDirection Left [ 0 .. j - 1 ]
+                Right, isVisibleInDirection Right [ j + 1 .. grid[i].Length - 1 ]
+                Top, isVisibleInDirection Top [ 0 .. i - 1 ]
+                Bottom, isVisibleInDirection Bottom [ i + 1 .. grid.Length - 1 ]
+            ]
+            |> Seq.tryPick (fun (direction, f) ->
+                let isVisibleInDirection =
+                    grid[i][j]
+                    //|> tee (printfn "tree[%A][%A]: %A" i j)
+                    |> f
+                    //|> tee (printfn " - is visible to %A: %A" direction)
+
+                if isVisibleInDirection
+                then Some true
+                else None
+            )
+            |> Option.defaultValue false
+            //|> tee (printfn " --> is visible: %A\n")
+
+        let task1 (input: string list) =
+            let grid =
+                input
+                |> List.map (fun line -> line.ToCharArray() |> Seq.choose (string >> Int.tryParse) |> List.ofSeq)
+
+            let visibleByDefault = 2 * grid.Length + (grid[0].Length - 2) * 2 |> tee (printfn "Default visible: %A")
+
+            seq {
+                for i in 1 .. grid.Length - 2 do
+                    for j in 1 .. grid.Length - 2 do
+                        if (i, j) |> isVisible grid then yield grid[i][j]
+            }
+            |> Seq.length
+            |> tee (printfn "Visible in directions: %A")
+            |> (+) visibleByDefault
+
+        let private scenicScore (grid: int list list) (i, j) =
+            let lowerTreesInLine direction range tree =
+                seq {
+                    let mutable run = true
+
+                    for k in range do
+                        let currentTree =
+                            match direction with
+                            | Top | Bottom -> grid[k][j]
+                            | Left | Right -> grid[i][k]
+
+                        //printf " ? %A <= %A" currentTree tree
+                        if run then
+                            //printfn " -> yield"
+                            yield currentTree
+                        //else printfn " -> skip"
+
+                        if currentTree >= tree then
+                            run <- false
+                }
+                //|> tee (Seq.map string >> String.concat "," >> printf " - [%s]")
+                |> Seq.length
+                // |> tee (printf " - is %A visible (%A) in %A" tree direction)
+
+            //printfn "\nScenic for %A at [%A][%A]" (grid[i][j]) i j
+            [
+                Top, lowerTreesInLine Top ([ 0 .. i - 1 ] |> List.rev)
+                Left, lowerTreesInLine Left ([ 0 .. j - 1 ] |> List.rev)
+                Bottom, lowerTreesInLine Bottom [ i + 1 .. grid.Length - 1 ]
+                Right, lowerTreesInLine Right [ j + 1 .. grid[i].Length - 1 ]
+            ]
+            |> Seq.map (fun (direction, f) -> grid[i][j] |> f (* |> tee (printfn " - in direction %A: %A" direction) *))
+            |> Seq.reduce (*)
+
+        let task2 (input: string list) =
+            let grid =
+                input
+                |> List.map (fun line -> line.ToCharArray() |> Seq.choose (string >> Int.tryParse) |> List.ofSeq)
+
+            seq {
+                for i in 1 .. grid.Length - 2 do
+                    for j in 1 .. grid.Length - 2 do
+                        (i, j) |> scenicScore grid
+            }
+            |> Seq.max
+
     // todo - add more days here ...
+
+    [<RequireQualifiedAccess>]
+    module private DayExample =
+        let task1 (input: string list) =
+            input
+            |> List.choose Int.tryParse
+            |> Seq.sum
+
+        let task2 (input: string list) =
+            input
+            |> List.choose Int.tryParse64
+            |> List.filter (fun i -> i % int64 2 = 0)
+            |> Seq.sum
 
     // --- end of days ---
 
@@ -607,6 +712,13 @@ module AdventOfCode =
                 if firstPuzzle
                 then inputLines |> Day7.task1
                 else inputLines |> Day7.task2
+
+            return! handleResult int result
+        | 8 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day8.task1
+                else inputLines |> Day8.task2
 
             return! handleResult int result
 
