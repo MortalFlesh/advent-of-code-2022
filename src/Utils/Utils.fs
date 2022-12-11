@@ -116,6 +116,11 @@ module Int =
         | true, value -> Some value
         | _ -> None
 
+    let tryParseBigInt (s: string) =
+        match bigint.TryParse s with
+        | true, value -> Some value
+        | _ -> None
+
 [<RequireQualifiedAccess>]
 module Directory =
     open System.IO

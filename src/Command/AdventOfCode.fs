@@ -593,6 +593,165 @@ module AdventOfCode =
             }
             |> Seq.max
 
+    [<RequireQualifiedAccess>]
+    module private Day11 =
+        open System.Collections.Generic
+
+        type MonkeyId = int
+        type Item = bigint
+
+        let private _inventory = Dictionary<MonkeyId, Item list>()
+        let private inventory = Dictionary<MonkeyId, Stack<Item>>()
+        let private activity = Dictionary<MonkeyId, bigint>()
+
+        type Monkey =
+            {
+                Id: MonkeyId
+                Operation: Item -> Item
+                Test: Item -> MonkeyId
+            }
+
+            with
+                member this.Inspect (item) =
+                    let currentActivity =
+                        match activity.TryGetValue(this.Id) with
+                        | true, activity -> activity
+                        | _ -> bigint 0
+                    activity[this.Id] <- currentActivity + bigint 1
+
+                    this.Operation item
+
+                member this.Items
+                    with get () =
+                        match inventory.TryGetValue(this.Id) with
+                        | true, items -> items
+                        | _ -> Stack()
+                    and set (items) =
+                        inventory[this.Id] <- items
+
+                member this.ThrowItem(item) =
+                    inventory[this.Test item].Push(item)
+
+        let private parseMonkey = List.filter ((<>) "") >> function
+            |   [
+                    Regex @"Monkey (\d+):" [ monkeyId ];
+                    Regex @"\s+Starting items: ([\d, ]+)" [ items ];
+                    Regex @"\s+Operation: new = old (.) (old|\d+)" [ operator; value ];
+                    Regex @"\s+Test: divisible by (\d+)" [ testValue ];
+                    Regex @"\s+If true: throw to monkey (\d+)" [ onTrue ];
+                    Regex @"\s+If false: throw to monkey (\d+)" [ onFalse ];
+                ] ->
+                    let testValue: Item = testValue |> bigint.Parse
+                    let onTrue: MonkeyId = int onTrue
+                    let onFalse: MonkeyId = int onFalse
+
+                    let operation =
+                        match operator, value |> Int.tryParseBigInt with
+                        | "+", Some value -> (+) value
+                        | "*", Some value -> (*) value
+                        | "+", _ -> fun old -> old + old
+                        | "*", _ -> fun old -> old * old
+                        | invalid -> failwithf "Invalid operator %A" invalid
+
+                    let monkey = {
+                        Id = int monkeyId
+                        Operation = operation
+                        Test = fun item -> if item % testValue = bigint 0 then onTrue else onFalse
+                    }
+
+                    monkey.Items <-
+                        items.Split(", ")
+                        |> Seq.choose Int.tryParseBigInt
+                        |> Stack
+
+                    Some monkey
+
+            | skipped ->
+                failwithf "Invalid monkey %A\n" skipped
+                None
+
+        let private lowerWorryLevel item =
+            item / bigint 3
+
+        let private round (monkeys: Monkey list) i =
+            monkeys
+            |> List.iter (fun monkey ->
+                [
+                    while monkey.Items.Count > 0 do
+                        yield monkey.Items.Pop()
+                ]
+                |> List.iter (monkey.Inspect >> lowerWorryLevel >> monkey.ThrowItem)
+            )
+
+            (* printfn "\nAfter round %A" i
+            monkeys
+            |> List.iter (fun monkey -> monkey.Items |> Seq.map string |> String.concat ", " |> printfn "Monkey %A: %s" monkey.Id) *)
+
+        let task1 (input: string list) =
+            let monkeyLines = 7.
+
+            let monkeys =
+                input
+                |> List.splitInto (float input.Length / monkeyLines |> int)
+                |> tee (List.iter (printfn "Monkey input: %A"))
+                |> List.choose parseMonkey
+                |> tee (List.iter (fun m -> printfn "Monkey: %A %A" m m.Items))
+
+            // printfn "Rounds ..."
+            [ 1 .. 20 ]
+            |> List.iter (round monkeys)
+
+            // printfn "\nMonkeys activity"
+            activity
+            // |> tee (Seq.iter (fun kv -> printfn "Monkey %A inspected items %A times." kv.Key kv.Value))
+            |> Seq.map (fun kv -> kv.Value)
+            |> Seq.sortDescending
+            |> Seq.take 2
+            |> Seq.reduce (*)
+
+        let private roundWithoutLoweringWorry (monkeys: Monkey list) i =
+            monkeys
+            |> List.iter (fun monkey ->
+                [
+                    while monkey.Items.Count > 0 do
+                        yield monkey.Items.Pop()
+                ]
+                |> List.iter (monkey.Inspect >> monkey.ThrowItem)
+            )
+
+            //if [ 1; 20; 1000; 2000; 5000; 10000 ] |> Set.ofList |> Set.contains i then
+            if i % 250 = 0 then
+                printfn "\nAfter round %A" i
+                (* monkeys
+                |> List.iter (fun monkey -> monkey.Items |> Seq.map string |> String.concat ", " |> printfn "Monkey %A: %s" monkey.Id) *)
+
+                printfn "\nMonkeys activity"
+                activity
+                |> Seq.iter (fun kv -> printfn "Monkey %A inspected items %A times." kv.Key kv.Value)
+
+        let task2 (input: string list) =
+            let monkeyLines = 7.
+
+            let monkeys =
+                input
+                //|> List.splitInto (float input.Length / monkeyLines |> int)
+                |> List.splitInto 4
+                //|> tee (List.iter (printfn "Monkey input: %A"))
+                |> List.choose parseMonkey
+                |> tee (List.iter (fun m -> printfn "Monkey: %A %A" m m.Items))
+
+            // printfn "Rounds ..."
+            [ 1 .. 10_000 ]
+            |> List.iter (roundWithoutLoweringWorry monkeys)
+
+            printfn "\nMonkeys activity"
+            activity
+            |> tee (Seq.iter (fun kv -> printfn "Monkey %A inspected items %A times." kv.Key kv.Value))
+            |> Seq.map (fun kv -> kv.Value)
+            |> Seq.sortDescending
+            |> Seq.take 2
+            |> Seq.reduce (*)
+
     // todo - add more days here ...
 
     [<RequireQualifiedAccess>]
@@ -721,6 +880,13 @@ module AdventOfCode =
                 else inputLines |> Day8.task2
 
             return! handleResult int result
+        | 11 ->
+            let result =
+                if firstPuzzle
+                then inputLines |> Day11.task1
+                else inputLines |> Day11.task2
+
+            return! handleResult bigint.Parse result
 
         | day ->
             return! sprintf "Day %A is not ready yet." day |> err |> Error
